@@ -1,6 +1,8 @@
 # PocketStage Phase 1 — adversarial review
 
-Reviewed September 14, 2026 against the current Phase 1 specification and everyday-object roadmap. This is a specification review, not a code review or measured feasibility result. No implementation plans were modified, model jobs launched, or resources provisioned.
+Historical review: the findings below refer to the preserved pre-revision specification, not the current API-first plan. Evidence links now point to that archive. The active plan incorporates revised design requirements; no code fix or test result is implied.
+
+Reviewed September 14, 2026 against the then-current Phase 1 specification and everyday-object roadmap. This is a specification review, not a code review or measured feasibility result. No implementation plans were modified, model jobs launched, or resources provisioned.
 
 ## Verdict
 
@@ -10,7 +12,7 @@ Three P1 gaps should be resolved before building beyond the spike. Three P2 gaps
 
 ## R1 — P1: Selection fallback does not rescue the live tracking failure that matters
 
-Evidence: [tracking stack, line 51](./PocketStage_Phase_1_Implementation_Plan.md:51), [failure behavior, line 122](./PocketStage_Phase_1_Implementation_Plan.md:122), [performance gates, line 292](./PocketStage_Phase_1_Implementation_Plan.md:292).
+Evidence: [tracking stack, line 51](archive/PocketStage_Phase_1_before_RGB_post_take.md), [failure behavior, line 122](archive/PocketStage_Phase_1_before_RGB_post_take.md), [performance gates, line 292](archive/PocketStage_Phase_1_before_RGB_post_take.md).
 
 Both a perfect SAM mask and a manually reviewed region feed the same optical-flow tracker. When the user grips an object, features may disappear or transfer to the hand. Switching the selector does not address that failure. The plan acknowledges the identity limitation, but then requires never confidently following the hand without specifying an independent identity check or a measurable limit on failure.
 
@@ -30,7 +32,7 @@ Fallback: use another ordinary object, improve lighting/view, or narrow the cert
 
 ## R2 — P1: Versioned takes can still be composed in incompatible coordinate systems
 
-Evidence: [calibration, line 102](./PocketStage_Phase_1_Implementation_Plan.md:102), [camera pass and persistence, line 142](./PocketStage_Phase_1_Implementation_Plan.md:142), [composition operation, line 159](./PocketStage_Phase_1_Implementation_Plan.md:159).
+Evidence: [calibration, line 102](archive/PocketStage_Phase_1_before_RGB_post_take.md), [camera pass and persistence, line 142](archive/PocketStage_Phase_1_before_RGB_post_take.md), [composition operation, line 159](archive/PocketStage_Phase_1_before_RGB_post_take.md).
 
 Example: record actors, bump the physical camera, recalibrate with a different rectangle/origin/scale, then record a camera pass. Every take has valid version metadata, but their positions need not describe the same stage. The plan preserves versions without requiring composition compatibility checks. A saved camera move can therefore be spatially wrong while its timestamps are correct.
 
@@ -42,7 +44,7 @@ Acceptance: change origin, aspect ratio, or virtual size between passes; the app
 
 ## R3 — P1: Re-selection and tracking loss have no complete recording lifecycle
 
-Evidence: [re-click behavior, line 130](./PocketStage_Phase_1_Implementation_Plan.md:130), [recording, line 140](./PocketStage_Phase_1_Implementation_Plan.md:140), [T17, line 277](./PocketStage_Phase_1_Implementation_Plan.md:277).
+Evidence: [re-click behavior, line 130](archive/PocketStage_Phase_1_before_RGB_post_take.md), [recording, line 140](archive/PocketStage_Phase_1_before_RGB_post_take.md), [T17, line 277](archive/PocketStage_Phase_1_before_RGB_post_take.md).
 
 Preserving a new segment and a gap does not answer whether scene time pauses while a mask request runs, whether the other actor continues recording, or whether actor replay continues during camera re-selection. A new clicked anchor can also change the controlled physical point. Keeping the same actor ID alone does not prevent a spatial jump.
 
@@ -54,7 +56,7 @@ Acceptance: lose one actor while the other moves; lose the camera controller dur
 
 ## R4 — P2: The latency measurement can exclude camera delay
 
-Evidence: [capture timestamps, line 84](./PocketStage_Phase_1_Implementation_Plan.md:84), [latency verification, line 299](./PocketStage_Phase_1_Implementation_Plan.md:299).
+Evidence: [capture timestamps, line 84](archive/PocketStage_Phase_1_before_RGB_post_take.md), [latency verification, line 299](archive/PocketStage_Phase_1_before_RGB_post_take.md).
 
 Timestamping after a decoded frame reaches Python measures downstream software delay. It does not establish when the sensor saw the movement. A camera/backend buffer can deliver old frames that then pass a fast software-latency test. Browser/backend clock synchronization cannot recover time already spent before that timestamp. OpenCV warns that capture-property behavior depends on hardware, drivers, and backend; an assumed buffer setting is not sufficient evidence. [OpenCV video-I/O properties](https://docs.opencv.org/4.13.0/d4/d15/group__videoio__flags__base.html).
 
@@ -64,7 +66,7 @@ Acceptance: a filmed series of motions is compared with displayed motion. Run it
 
 ## R5 — P2: The AI/camera-filmmaking promise lacks a required portable visual output
 
-Evidence: [filmmaking promise, line 42](./PocketStage_Phase_1_Implementation_Plan.md:42), [export boundary, line 54](./PocketStage_Phase_1_Implementation_Plan.md:54), [later exports, line 310](./PocketStage_Phase_1_Implementation_Plan.md:310).
+Evidence: [filmmaking promise, line 42](archive/PocketStage_Phase_1_before_RGB_post_take.md), [export boundary, line 54](archive/PocketStage_Phase_1_before_RGB_post_take.md), [later exports, line 310](archive/PocketStage_Phase_1_before_RGB_post_take.md).
 
 The core guarantees an application-specific scene package and replay, while calling the result useful shot references for AI filmmaking. That can be adequate for in-app rehearsal, but there is no required image or video artifact usable by a collaborator or another filmmaking tool. This is a product-scope mismatch, not a reason to add video generation.
 
@@ -74,7 +76,7 @@ Acceptance: open the exported images outside PocketStage and match them to saved
 
 ## R6 — P2: Optional environments can break the supposedly independent core at startup
 
-Evidence: [adapter boundary, line 78](./PocketStage_Phase_1_Implementation_Plan.md:78), [fallback promise, line 251](./PocketStage_Phase_1_Implementation_Plan.md:251), [W03, line 287](./PocketStage_Phase_1_Implementation_Plan.md:287).
+Evidence: [adapter boundary, line 78](archive/PocketStage_Phase_1_before_RGB_post_take.md), [fallback promise, line 251](archive/PocketStage_Phase_1_before_RGB_post_take.md), [W03, line 287](archive/PocketStage_Phase_1_before_RGB_post_take.md).
 
 A scene-switch button cannot recover from an optional renderer import failure that prevents the app from starting. Likewise, “unsupported future schemas are rejected” does not establish that a newer generated-set project remains usable after disabling that feature. Interface separation helps, but is not an executable rollback guarantee.
 

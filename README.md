@@ -20,8 +20,8 @@ PocketStage does not try to infer a human performance from a bottle or stapler. 
 
 The first release targets one fixed-camera scene, two actor bindings, one camera binding, and 5–10-second takes on an M4 Mac.
 
-- fal.ai SAM3 proposes a mask from a click; SAM2 and reviewed manual regions are fallbacks.
-- Local OpenCV tracking keeps continuous video off the network.
+- fal.ai SAM 2 Video supplies reviewed object masks after a 5–10-second take; Video Depth Anything supplies separate, nonmetric depth signals.
+- Local OpenCV tracking remains an independent offline fallback. Hosted processing uploads the canonical clip only with explicit consent.
 - A simple Three.js stage is always available.
 - World Labs can provide an optional generated virtual set after the core workflow works.
 - Tavus is deferred; it is not a geometric tracking dependency.
@@ -32,15 +32,15 @@ The guaranteed tracking profile is intentionally narrow: compact, textured objec
 ## Tracking strategy
 
 ```text
-click or reviewed region
+recorded take + reviewed object prompts
           ↓
-initial object mask
+SAM 2 Video masks + shared Video Depth Anything
           ↓
-local feature/point tracking
+approximate centroid motion + relative object positions
           ↓
-robust planar pose estimate
+JSON / CSV tracks + rendered motion preview
           ↓
-versioned actor and camera trajectories
+reviewed stage mapping (integration still pending)
           ↓
 Three.js replay and shot references
 ```
@@ -51,11 +51,11 @@ For genuine metric 6-DoF, the most credible hackathon experiment uses an enrolle
 
 ## Current status
 
-This repository now includes the first offline implementation slice: immutable video import, a canonical 15-fps proxy, reviewed rectangular selection, local OpenCV feature tracking, fail-closed tracking loss, tabletop coordinate mapping, versioned trajectory candidates, provider request/response validation, a CLI, and deterministic tests.
+The Python pipeline includes immutable import, canonical proxies, independent OpenCV tracking, explicit tabletop mapping, hosted SAM/depth jobs, shared-depth multi-object runs, approximate centroid motion, relative moving/static object positions, and JSON/CSV/video exports. SAM and depth have completed on supplied real clips. Raw footage, private cloud state, and credentials are deliberately not committed.
 
-It is checkpoint A, not the completed Phase 1 app. Hosted inference, webcam capture, the review UI, two-actor composition, the camera pass, 6-DoF, and optional environments are not implemented yet. No inference job, GPU rental, or provider resource has been created.
+The [Director's Desk web app](app/README.md) provides mock-backed actor/camera recording, virtual playback, review, and import of reviewed stage-space Python candidates. The new relative-image motion JSON is a separate format: it is **not yet connected to that importer**. Do not rename image offsets to stage coordinates or inferred depth to height. The full integrated Phase 1 application and 6-DoF are not complete.
 
-See [implementation setup and CLI usage](IMPLEMENTATION.md) to run the current slice. The next proof is one ordinary object surviving natural hand manipulation in a recorded 5–10-second take.
+See [implementation setup and CLI usage](IMPLEMENTATION.md). The next integration is an explicit reviewed mapping from the multi-object motion export to the app's stage-space contract, preserving timing and tracking gaps.
 
 ## Documentation
 

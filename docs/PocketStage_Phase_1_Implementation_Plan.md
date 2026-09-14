@@ -1,313 +1,270 @@
-# PocketStage Phase 1 — markerless tabletop directing
+# PocketStage Phase 1 — SAM 2 Video, Video Depth Anything and local geometry
 
-Revision: September 14, 2026. Sponsor-first selection; local live tracking; optional generated sets. No implementation or inference benchmarks have been executed.
+Revision: September 14, 2026. This is the controlling first-build specification. It supersedes earlier live-neural-first and enrolled-6-DoF proposals. The [feasibility runner](../IMPLEMENTATION.md) now includes a successful live SAM/depth smoke test (local media artifacts; not committed). The initial real-clip OpenCV-only trial failed to sustain phone tracking. Quality certification, integrated geometric solving and the complete application remain pending; requirements below are not completion claims.
 
-## 1. Outcome and scope
+## 1. The decision
 
-Phase 1 delivers one usable short-shot workflow on the existing M4 Mac with 16 GB RAM:
+Timeboxed demo update: at the user's request to prioritize an immediate demo, a mask-centroid relative-motion lane (local media artifacts; not committed) now runs before the full review UI and stable-surface solver. It includes moving/static object roles and raw depth differences. This approximate control path does not satisfy the calibrated/geometric or quality gates below, and does not replace the independent fallback.
 
-**Click and confirm two everyday objects → move them to direct virtual actors → record a separate camera-object pass → replay and save the shot.**
+**Record a 5–10-second RGB take → SAM 2 Video masks + Video Depth Anything → local geometric solving → reviewed virtual performance. Keep the lightweight OpenCV tracker as the independent fallback.**
 
-This specification consolidates the earlier roadmap's tracking spike, usable stage, camera pass, and bounded click-selection assistance into Phase 1 checkpoints A–F, with optional World Labs set enhancement G. Broader tracking robustness and richer filmmaking exports remain subsequent phases.
+This is the intended full Phase 1 pipeline, not a selection-only SAM integration or a CoTracker-first implementation. Both hosted models are in the planned build. Depth must produce a usable, tested relative signal before it is presented as working.
 
-The first release supports one fixed-camera tabletop scene, two actor bindings, one camera binding, and 5–10-second performances. Compact, textured everyday objects are the initial certified profile; no printed markers or special bases. Position is required. Rotation is enabled only when observable; fixed/look-at heading remains available.
+No 6-DoF requirement. No solvePnP, object enrollment, object measurements, intrinsic camera calibration, LiDAR, depth hardware or object scanning. “Geometric solving” here means table-constrained position and observable planar heading, with a separately qualified relative-depth cue. It does not mean reconstructing a physically accurate free-space object pose.
 
-No DancingBox, human-motion generation, SMPL, Pi3, reconstruction of the physical tabletop, inferred actions, scripts, contact simulation, or video-generation service. An optional generated 3D environment is a virtual set, not recovered physical geometry. Two simple colored virtual characters are sufficient. Optional walk/idle animation is procedural or asset-based and labeled as such.
+The Mac owns capture, processing orchestration, OpenCV solving, playback, persistence and export. Hosted inference runs after recording. A rented GPU is not required for the primary path.
 
-**Budget:** target $0 incremental API/GPU spending using the user's stated unlimited hackathon access to fal.ai, World Labs, and Tavus. Verify endpoint eligibility, expiry, rate limits, and ancillary charges before jobs run; sponsor access is not an assumed billing cap. Do not rent a GPU initially. Operational spending ceiling is $30, leaving $10 untouched below the requested $40 maximum. Include setup, idle time, storage, taxes, and fees. This plan does not provision or pay for anything.
+### What the release does
 
-All timing, quality, and cost estimates below are proposed targets, not executed benchmarks.
+- Capture up to two ordinary actor objects in one take under a fixed webcam.
+- Select each object on a recorded frame, review the selection and run post-take processing.
+- Transfer supported tabletop movement to two virtual actors; optionally use reliable planar heading.
+- Show inferred relative depth beside the source evidence. Allow an explicitly reviewed, bounded artistic mapping of that cue to one virtual control.
+- Record a separate object-driven camera pass while replaying accepted actor motion.
+- Review, scrub, save/reopen and export three chosen shot-reference PNGs plus a trajectory/shot manifest.
 
-## 2. Completion levels and demo
+For normal filmmaking, this is blocking and framing previsualization. For AI filmmaking, it provides references and structured motion data. It does not promise generator-specific motion conditioning, final generated footage or a calibrated physical camera move.
 
-Phase 1 has a certified core fallback and a full click-first target:
+Start with textured, rigid, compact everyday props such as a patterned case, small package or toy. No markers, special bases or DancingBox rig. Transparent, reflective, deformable or rotationally symmetric objects are not guaranteed. Hand manipulation must be tested, not excluded from the demo.
 
-| Profile | Required behavior | What it may claim |
-|---|---|---|
-| Core fallback | Reviewed outline/box selection, two local object tracks, camera pass, replay/save | Markerless region-selected tabletop directing |
-| Full Phase 1 | Core plus working click-prompted mask selection and correction | Click-to-select everyday-object directing |
-| Optional enhancement | World Labs virtual set; better tracked yaw or fitted assets if tested | Only the specific tested capability; core remains usable without it |
+### Honest completion labels
 
-An unavailable segmenter must not silently convert a manual-selection demo into a claimed click-first success. Camera-pass failure leaves a usable actor-blocking checkpoint but does not satisfy the full Phase 1 gate.
-
-Demo sequence:
-
-1. Place a textured case and small box on the table; keep objects still during selection.
-2. Click each, confirm its mask/anchor, and assign Actor A or B.
-3. Record A approaching B, both pausing, and B moving away. Use fixed facing where rotation is ambiguous.
-4. Replay the actors while moving a stapler or flat object as the camera controller.
-5. Watch the virtual shot; re-record only the camera pass.
-6. Save/reopen, then cover an object in a new take and demonstrate an honest tracking-loss state.
-
-For normal filmmaking, this is a previsualization rehearsal. For AI filmmaking, it provides shot references and a saved scene trajectory; exact conditioning of a specific generator is not part of Phase 1.
-
-## 3. Sponsor-assisted setup, local live runtime
-
-| Component | Initial implementation | Fallback / boundary |
-|---|---|---|
-| UI/rendering | TypeScript, React, Three.js; source, stage, timeline | Simple floor and colored characters always available |
-| Capture/orchestration | Local Python, FastAPI/WebSocket, OpenCV camera access | Imported short video for fixtures |
-| Click selection | fal `fal-ai/sam-3/image`, subject to endpoint smoke test | Hosted `fal-ai/sam2/image` adapter, then reviewed manual region |
-| Live point tracking | OpenCV good features + pyramidal Lucas–Kanade on Mac | Re-click/manual region; no network dependency |
-| Planar pose | Robust fit, stable anchor, calibrated stage mapping | Position-only when yaw is unsupported |
-| Virtual environment | Simple local stage | Optional World Labs environment through Spark/Three.js |
-| Storage/export | Versioned JSON, immutable evidence and tracks, reopenable local package | No database; viewport video only if time remains |
-| Tavus | Deferred | No conversational avatar or perception service required |
-| Rented GPU / learned tracker | Deferred | Only a bounded, justified experiment under §8 |
-
-fal documents point-prompted image segmentation for both endpoints. They have different schemas, so implement separate decoders behind one selector contract. SAM3 is the first candidate, not a claim that it outperforms SAM2 on our objects. [SAM3 API](https://fal.ai/models/fal-ai/sam-3/image/api), [SAM2 API](https://fal.ai/models/fal-ai/sam2/image/api).
-
-The cloud only assists deliberate selection/reselection and optional set creation. It is never called for every camera frame. Neither a “real-time” API label nor an annotated video demonstrates suitable persistent numeric tracks for this application. There is no verified hosted CoTracker dependency in this plan.
-
-Local SAM2 is a later offline-click option, not a prerequisite or installation task for the first build. Its MPS support is preliminary. CoTracker's MPS demo is not a latency benchmark, and its noncommercial license requires separate review. [SAM2 MPS implementation](https://github.com/facebookresearch/sam2/blob/main/demo/backend/server/inference/predictor.py), [CoTracker demo](https://github.com/facebookresearch/co-tracker/blob/main/online_demo.py), [license](https://github.com/facebookresearch/co-tracker#license).
-
-Tavus provides conversational video and visual-awareness capabilities. That does not establish accurate tabletop coordinates, object identity, or pose timing. A voice-director interface may be considered later, but is not Phase 1 work merely because access is available. [Tavus CVI documentation](https://docs.tavus.io/sections/conversational-video-interface/faq).
-
-### Stable boundaries that prevent rework
-
-Keep ObjectSelector, PointTracker, PoseEstimator, Recorder, SceneRenderer, and EnvironmentProvider separate. The renderer consumes local versioned trajectories, never provider response objects. Replacing a selector/tracker changes its producer metadata, not actor IDs or old takes.
-
-| Record | Required additions from the start |
+| Profile | Required result |
 |---|---|
-| SelectionProposal | Source frame/hash/dimensions, calibration/cast versions, pixel transform, prompts, provider/endpoint/configuration, request ID, normalized candidate masks |
-| ConfirmedBinding | Application-owned actor ID, reviewed mask and anchor, heading policy; provider IDs are request-local only |
-| ProviderJob | Purpose, input hash, request ID when known, state/deadline, sponsor eligibility, result references; no secrets |
-| EnvironmentVersion | Built-in or generated kind, provider/world ID, asset format/local checksum, reviewed stage-to-environment transform and play area |
-| SceneComposition | Immutable performance/camera references plus selected environment version; never embed tracking in environment coordinates |
+| Local fallback complete | Two actor tracks, separate camera pass, reviewed selection, planar playback, persistence and PNG/manifest export work without cloud access |
+| Full Phase 1 complete | Local fallback plus verified SAM 2 temporal masks, aligned raw Video Depth Anything data, integrated local solving and a useful validated relative-depth cue |
+| Experimental | CoTracker or later 3D candidates shown separately; not prerequisites for either profile |
 
-A built-in environment record ships with A; the remote adapter arrives only in G. Do not build a generic plugin framework. These small records are enough to preserve portability.
+If an endpoint or depth-quality gate fails, ship the last passing profile and name the missing capability. Do not call the full pipeline complete because requests merely returned successfully.
 
-Suggested future repository paths: `app/src/stage/`, `capture/`, `review/`; `backend/capture.py`, `selection/`, `tracking/`, `geometry/`, `recording/`, `providers/`, `schemas/`; and `tests/fixtures/`. GPU lifecycle scripts are added only if rental is approved and needed. None of these application files exist yet.
+## 2. User flow and physical setup
 
-## 4. Capture, selection, and coordinate contract
+1. Mount the webcam securely above or steeply overlooking the table. Select four ordered corners of a rectangular play area, specify its aspect ratio and choose virtual stage dimensions.
+2. Record a 5–10-second actor take. Keep each object briefly unobstructed near the beginning. Raw video preview is sufficient; provisional local motion is optional.
+3. On a clean saved frame, click actor A and actor B, add correction prompts if necessary and assign virtual assets. Manual reviewed regions remain available.
+4. Process the take. Show baseline progress and separate mask/depth job states.
+5. Review source video, masks/features, virtual stage and timeline together. Inspect gaps and optional depth mapping. Accept a candidate explicitly.
+6. Replay the accepted actor performance from scene time zero while recording a separate camera-object take. The physical webcam stays fixed.
+7. Process and accept the camera pass; replacing it must not change actor motion.
+8. Save/reopen, scrub and export three selected reference images with their timing and camera settings.
 
-The Python service owns the camera and timestamps decoded frames on one monotonic clock. Request 720p/30 fps as an initial configuration, but record actual dimensions and cadence. Process tracking at a lower resolution where useful, preserving the exact pixel transform. Expose a preview and frame IDs to the browser; do not independently open a second browser camera stream with different timing.
+Selection may start on a later clean frame, but earlier frames remain explicitly unavailable unless a separately tested backward-processing path supplies them. Never hide the missing prefix by shifting the timeline. Re-selection produces a new candidate from the original take; there is no in-take segment stitching or full trajectory editor.
 
-Bind every selection to an immutable frame ID, image hash, cast version, and calibration version. Freeze the displayed selection image while the request runs. A late mask cannot initialize points against a newer frame: either require the objects to remain still and validate that assumption or reselect on a current frame. Resizing, cropping, rotation, and mirrored display all need explicit coordinate mappings.
+Changing the physical camera or stage rectangle invalidates its capture mapping. A new mapping may reuse the same named stage only after an explicit compatibility check. Do not merge different origins, axis directions or scales automatically.
 
-### Hosted selection adapter
+## 3. Build order: each checkpoint preserves the previous one
 
-1. Capture one immutable frame and require the objects to stay still through confirmation. Upload only after explicit cloud-selection action and disclosure.
-2. Submit one object proposal at a time. Convert display clicks to source-pixel coordinates before provider serialization.
-3. For SAM3 use `point_prompts`; its schema defaults text `prompt` to “wheel.” Verify point-only behavior explicitly; never silently inherit that text. If a supplied object label is needed, expose it. SAM2 instead uses `prompts`. [SAM3 schema](https://fal.ai/models/fal-ai/sam-3/image/api), [SAM2 schema](https://fal.ai/models/fal-ai/sam2/image/api).
-4. Test PNG output with `apply_mask: false`. SAM3 returns `masks`; SAM2 documents an `image` result. Validate actual pixel/alpha encoding, foreground polarity, dimensions, and alignment against a fixture. An attractive overlay is not a usable binary mask. If the decoder cannot prove the mapping, reject it.
-5. Normalize a selected candidate to an application-owned source-size binary mask. Never equate model confidence with tracking confidence. Multiple candidates do not automatically create multiple actors.
-6. Show the candidate for confirmation and corrective positive/negative clicks. Validate current-frame consistency before initializing local points; moved objects require a fresh proposal.
-7. Cache the confirmed mask and provenance locally. Reopening a project must not require the provider URL to remain alive.
+| Checkpoint | Build | Acceptance gate | Fallback |
+|---|---|---|---|
+| A — Evidence spike | Save a real manipulation fixture; test local tracking; smoke-test both sponsored endpoints | Usable object tracking; actual mask/depth payloads and billing coverage understood | Local fixture runner; report unsupported cloud contract |
+| B — Durable local slice | Capture, immutable takes, canonical proxy, project records, one actor, baseline review | Capture survives processing failure; deterministic source mapping and reopen | A |
+| C — Local directing loop | Two actors, camera pass, independent acceptance, PNG/manifest export | Complete useful local workflow and compatible composition | B; not the complete fallback profile |
+| D — SAM 2 temporal masks | Per-actor adapter, mask review, identity checks, mask-assisted local tracking | Masks improve or preserve tested tracking without silent identity transfers | C |
+| E — Video depth and fusion | Shared depth job, raw-array validation, relative-depth inspection/control | Aligned and useful relative-depth cue; independent quality flags | D with depth disabled |
+| F — Certification | Manipulation trials, failures, timing, export and project round-trip | Explicit local or full completion profile with evidence | Last passing checkpoint |
+| Optional after F | Separate local CoTracker benchmark | Measured benefit on the same takes | Certified pipeline unchanged |
 
-**Immediate fallback is manual selection**, not a chain of automatic model calls. Offer SAM2 explicitly if SAM3 fails its gate; never silently retry against a billable endpoint. Local SAM2 remains optional later.
+Suggested engineering allocation: A 1–2 hours; B 2–3; C 3–4; D 2–3; E 2–3; F 1–2. Approximately 11–17 focused hours, subject to the first spike. This is a planning estimate, not a hackathon completion guarantee. If mask output needs a new deployment, re-estimate rather than hiding that work.
 
-### Calibration and anchor
+Timebox initial endpoint probing to about 30 minutes within A. If the documented contract cannot supply usable masks, stop adapter expansion and request sponsor clarification while continuing the local slice. Do not spend the event installing research models to conceal an unavailable API.
 
-Calibration requires four correctly ordered, non-self-intersecting corners of a rectangle plus its aspect ratio. Reject degenerate quadrilaterals. Map to a chosen virtual width/depth; this is a directing coordinate system, not surveyed measurements. Define stage coordinates as right-handed, Y-up, with a documented image-to-ground mapping.
+Keep coding iterations small; run relevant checks within approximately ten-minute interaction cycles. Never cut timestamp validation, uncertainty states or persistence to claim the larger profile.
 
-Use a near-overhead fixed camera and compact objects. Table homography does not remove height parallax; tall objects and non-planar turns receive lower-confidence support. Camera repositioning invalidates calibration; provide an explicit reset and check static table/background features for large disturbances where feasible. [OpenCV homography documentation](https://docs.opencv.org/4.13.0/d9/dab/tutorial_homography.html).
+## 4. Runtime and shared interfaces
 
-Ask for a reviewed actor anchor and optionally a forward direction. Track the anchor under the fitted transform instead of averaging the remaining visible points. Derive yaw in stage coordinates, not directly from image angle. Do not convert apparent scale changes into elevation.
+Use React/TypeScript/Three.js for the UI and scene, Python/FastAPI for a loopback-only local service, OpenCV for capture and geometry, and FFmpeg/ffprobe for canonical video preparation and inspection. One process owns the physical camera. Heavy conversion and inference orchestration must not block its capture loop.
 
-## 5. Live tracking and failure behavior
+Proposed modules:
 
-Initialize approximately 20–40 spatially distributed good features inside a slightly eroded reviewed mask. This is a tuning range, not a sufficiency guarantee. A bounding box fallback needs user review because it may include background.
+- `capture/`: camera ownership, bounded recording writer, timestamp index.
+- `media/`: canonical proxy, source mapping, decoded output validation.
+- `tracking/baseline`: features, optical flow, outlier rejection and planar control.
+- `providers/sam2_video`, `providers/video_depth`: authenticated requests and strict artifact adapters.
+- `fusion/`: mask-gated tracks, depth aggregation and quality decisions.
+- `projects/`: immutable artifacts, manifests, candidate acceptance and compatibility.
+- `scene/`: provider-independent playback, camera and reference export.
+- `experiments/`: optional CoTracker; never imported on core startup.
 
-For each processed frame:
+There is one tracking-result interface. Models do not write directly to actor transforms or accepted performances. Placeholder shapes and a neutral stage always render without downloaded assets.
 
-1. Track features with Lucas–Kanade.
-2. Reject failed or inconsistent tracks using forward–backward checks.
-3. Fit a robust transform from correspondences in the intended planar coordinate convention.
-4. Check inlier count/ratio, residual, spatial spread, and implausible motion/scale.
-5. Update position and yaw validity independently.
-6. Apply causal smoothing only to valid observations.
-7. Emit frame/time, pose, quality metrics, status, and held/missing flags.
+### Records to establish before model integration
 
-OpenCV provides the optical-flow and robust fitting primitives; thresholds and object-identity checks are application work. RANSAC cannot guarantee identity when a hand becomes the dominant tracked group. [Optical-flow API](https://docs.opencv.org/4.13.0/dc/d6b/group__video__track.html), [transform API](https://docs.opencv.org/4.13.0/d9/d0c/group__calib3d.html).
-
-Use three states:
-
-- TRACKING: valid supported position; yaw may independently be unavailable.
-- DEGRADED: limited evidence; visibly reduce trust and avoid unstable rotation.
-- LOST: no supported new pose; freeze/ghost the actor with a warning, preserving a missing interval.
-
-A display hold is not a recorded measurement. Never follow the hand confidently, bridge a long gap silently, or auto-reassign Actor A to Actor B. Re-clicking creates a new reviewed tracking segment. Retain the last segment and its gap.
-
-Bound the frame queue to prevent latency accumulation. Rendering may interpolate between valid estimates, but record processed and skipped frame IDs. When the queue overflows, drop stale work explicitly rather than showing an increasingly delayed “live” scene.
-
-On initial selection failure, offer additional clicks, an outline/box, or another object. Do not repeatedly invoke a remote model without a deadline and retry limit.
-
-## 6. Recording, camera pass, and persistence
-
-Record the original decoded frame sequence or an encoded equivalent with an authoritative frame-ID/timestamp index. For the first bounded 10-second implementation, timestamped JPEG frames are an acceptable simple source format; add video encoding later without changing timing. Avoid labeling a fixed-frame-rate preview as exact capture timing unless it has been resampled deliberately.
-
-Store raw tracks, quality/loss intervals, and smoothing configuration separately. Write new takes to a temporary task-owned directory, finalize its manifest atomically, and select takes through explicit composition metadata. A failed write must preserve the prior selected composition. Partial recordings can be recovered as incomplete; no silent overwrite.
-
-A camera take records against the actor performance's clock after a countdown. Store the alignment offset. Playback uses scene time, not the moment each asynchronous message arrived. Short camera takes leave explicit missing coverage; never silently stretch time to fill the actor take.
-
-Camera defaults: fixed height, fixed field of view, zero roll, position tracking plus explicit look-at target. Tracked-yaw mode is optional until stable. Heading and velocity remain separate for both camera and actors.
-
-A saved project contains calibration, cast bindings, original evidence, raw/filtered tracks, performance take, camera take, selected composition, environment selection, and schema/producer versions. Reject unsupported future schemas safely. Changing calibration, masks, or assets creates new versions.
-
-## 7. Minimal service surface
-
-| Operation | Contract |
+| Record | Essential fields and invariants |
 |---|---|
-| Start/stop preview | Camera identity, dimensions, monotonic epoch, permission/error status |
-| Create calibration | Exact source/configuration and reviewed corner/aspect data |
-| Propose selection | Frozen frame/hash, prompt points/box, producer and request ID |
-| Confirm cast binding | Reviewed mask, anchor, role, heading policy; reject stale frame/version |
-| Start/stop take | Cast/calibration versions, take kind, explicit lifecycle and timestamps |
-| Pose stream | Actor, segment, frame/time, position/yaw validity, quality and mode |
-| Reselect actor | New bound segment; preserve loss interval and actor identity |
-| Select composition | Exact performance/camera take versions |
-| Save/load/export | Versioned manifest and integrity checks |
-| Provider job status/cancel | Bounded selection/setup jobs; ignore superseded results |
-| Generate/review/select environment | Optional G only; new version committed after validation |
-| Remote benchmark | Explicit bounded fixture job; never automatic background upload |
+| StageFrame | Stable ID, origin, axes, aspect ratio, virtual units and revision; not implicitly metres |
+| CaptureMapping | Stage ID, corner mapping, image dimensions/orientation, physical camera configuration and revision |
+| CaptureTake | Immutable source reference/hash, actual dimensions, monotonic frame timestamps, duration and capture mapping |
+| CanonicalProxy | Hash, codec, dimensions, exact frame count/rate, crop/resize transform and proxy-to-source timestamp/index map |
+| Selection | Actor ID, proxy hash, prompt frame, prompts/manual region, asset and reference anchor |
+| ProcessingJob | Input/config hashes, provider/model, external request IDs, status, attempt count, timings and local output paths |
+| TrackCandidate | Take/actor IDs, adapter versions, per-sample controls, quality flags, source provenance and artifacts |
+| Performance | Explicitly accepted actor candidate IDs and stage/time mapping; immutable revision |
+| CameraTake | Independent camera candidate, fixed settings and intended performance revision |
+| Composition | Compatible performance/camera references, scene clock and explicit offsets |
+| ExportManifest | Composition revision, exact output times, camera/FOV/aspect, assets, control modes and file hashes |
 
-Bind the local service to loopback, restrict allowed UI origins, validate message sizes, and reject arbitrary filesystem paths. Keep credentials outside frontend code and project exports.
+Each sample stores time, planar position or null, heading or null, relative-depth cue or null, and independent validity/reason codes. Suggested states: VALID, DEGRADED, LOST, UNAVAILABLE. Geometric diagnostics are not calibrated confidence probabilities.
 
-## 8. Sponsor access, remote jobs, and spending controls
+Store measured/estimated evidence separately from applied artistic controls. Fixed heading, look-at direction and depth-to-height mappings must remain distinguishable from tracked signals. Future trackers can add capabilities without changing the meaning of existing fields.
 
-### Default: no rental
+## 5. Capture and one canonical processing clip
 
-Timebox the initial fal integration probe to 30 minutes: confirm sponsored endpoint access, submit a representative frozen-frame click, inspect the returned mask, and try one correction. If blocked, continue with the manual-region local spike; do not spend the hackathon debugging model installation.
+Request 720p/30 fps initially, but persist actual capture timing and dimensions. Host receive timestamps are not claimed to be hardware exposure timestamps. Use a bounded writer queue; report dropped frames. If recording cannot keep up, fail that take visibly while preserving prior takes.
 
-Before any model job, record covered endpoint/model, grant expiry, relevant rate/concurrency limits, and whether storage/egress are covered. Use server-side secrets only, outside exports and logs. Missing/expired access or billing-required responses disable that provider; they do not authorize paid fallback. Normal recording and replay continue offline.
+Create one immutable, constant-frame-rate proxy, initially 480p at 15 fps, from the saved source. Record every resampling decision. A 10-second proxy is roughly 150 frames, not assumed to equal the original capture count.
 
-Use one in-flight selection job, bounded image size, and an initial 15-second interactive deadline. Show progress immediately and allow manual selection without waiting. Persist a returned request ID and poll that job with bounded backoff. Permit at most one deliberate retry after a confirmed failure; an ambiguous submit must not trigger blind resubmission. Cancellation is best effort: a late result cannot alter a newer selection, and a UI timeout does not prove the provider stopped work. Handle rate limits without a retry storm.
+Both hosted services and proxy-based local solving use this exact clip. Point prompts refer to its pixel coordinates and frame indices. Never send independently trimmed, cropped or resampled clips to different providers.
 
-Provider-created URLs may be public or temporary. Avoid sensitive tabletop content, minimize uploads, document actual retention/deletion controls, and remove task-owned uploads where supported. Do not promise deletion from provider systems without verification. Restrict remote downloads to expected HTTPS assets, bound sizes/timeouts, and block local/private-network targets.
+After download, validate duration, frame count, dimensions, orientation and temporal correspondence before combining outputs. Record any supported output resize explicitly. Equal array lengths alone do not establish alignment: A includes a clip with recognizable timed visual changes to detect offsets/duplication. Reject unexplained truncation or shifting rather than “fixing” it by array indexing.
 
-### When renting could be justified
+Keep original capture and proxy so future methods can reprocess the same performance without another physical take. Full source re-encoding or upsampling is not required merely to render playback at a higher display rate.
 
-Only after hosted selection has been evaluated and the local core is usable, consider one GPU for a specific unsupported experiment or a bounded offline tracker comparison. Manual selection remains the operational fallback; rental is not required to complete the core. Confirm the proposed rental scope before provisioning.
+## 6. SAM 2 Video: primary temporal object masks
 
-Do not move live tracking to the network. Remote tracking experiments use reviewed fixture clips only. A GPU cannot fix unobservable yaw, full occlusion, or incorrect calibration.
+Target `fal-ai/sam2/video`. Its schema accepts video and frame-indexed point/box prompts; outputs list segmented video and an optional ZIP of bounding-box overlays. The documented prompts have no explicit object-ID field, and the ZIP is not documented as raw masks. [Official endpoint schema](https://fal.ai/models/fal-ai/sam2/video/api).
 
-Suggested rental: one on-demand Runpod RTX 4090, 24 GB, subject to availability and an actual quote at or below $1/hour for compute. The public page currently lists $0.74/hour. Eight hours at that rate is $5.92; ten is $7.40. This is listed compute pricing, not a booked quote or proof of workload memory requirements. [Runpod pricing, checked September 14, 2026](https://www.runpod.io/pricing).
+**First integration gate:** inspect actual sponsored results and determine whether a supported configuration yields usable per-frame masks. Probe `apply_mask` behavior; do not assume false means binary output. Validate foreground/background separation, black objects, compression artifacts and frame alignment. A color overlay or box overlay is not a numeric object mask contract.
 
-### Budget envelope
+If unavailable, request a raw-mask-compatible configuration/endpoint from fal and leave this adapter disabled. Any endpoint substitution must be recorded and agreed as a scope change; no silent SAM 3 or custom-deployment substitution.
 
-| Item | Planning allowance |
-|---|---:|
-| Compute, including startup, downloads, debugging, idle and retries | $12 |
-| Temporary disks and cleanup lag | $3 |
-| Taxes, payment fees and price uncertainty | $5 |
-| Incident/reconciliation buffer; not routine spending | $10 |
-| Operational ceiling | **$30** |
-| Untouched margin below requested maximum | **$10** |
+Our implementation contract:
 
-The expected sponsored/local path incurs no GPU rental charge. A contingency session may land near $10–15 total, but taxes and provider checkout terms are not verified. Any uncovered API costs share this same budget; they are not a separate allowance. Do not buy assets, domains, subscriptions, savings plans, or unrelated services from this budget.
+- Submit one job per actor initially, mapping each request to the app's stable actor ID. Two actors share the uploaded clip but not an assumed multi-object label encoding.
+- Convert verified output into a local binary-mask sequence plus provenance; no undocumented color-based identity guessing.
+- Review initial selection before accepting a full candidate. Additional prompts create a new selection revision.
+- Evaluate mask overlap, abrupt area/appearance changes and feature ownership. If two actor masks merge or overlap ambiguously, mark the affected interval uncertain.
+- Seed and refresh features inside eroded mask interiors; reject points that migrate outside supported object evidence.
+- Never treat every mask pixel as a persistent surface correspondence. A moving mask centroid is not a stable physical anchor.
+- Never assume a mask proves identity through hands, full occlusion or off-screen exits.
 
-Runpod bills stopped volume storage, and stopping is not equivalent to terminating a Pod. Current documentation lists container/running-volume storage at $0.10/GB/month and stopped-volume storage at $0.20/GB/month. Its default $80/hour account limit is not a $40 project cap. [Pod billing documentation](https://docs.runpod.io/pods/pricing).
+An API response succeeding does not satisfy this checkpoint; masks must work in the local solving tests.
 
-Before provisioning, the implementation must:
+## 7. Local geometric solving and the lightweight fallback
 
-1. Record the final quote, tax/fee treatment, storage allocation, balance, and project budget baseline.
-2. Use one instance and no autoscaling. Cap cumulative compute at 12 hours at the accepted rate; initial session limit two hours.
-3. Disable automatic recharge for a dedicated project billing context where possible. Do not alter shared billing settings or rely on another project's balance as the budget control.
-4. Use a small initial prepaid amount where available, keeping cumulative payments including fees under $30. Minimum funding and unused-credit treatment must be checked before paying.
-5. Arm a bounded-session shutdown mechanism before useful work begins. A local reminder alone is insufficient because the Mac can sleep. Validate an independent watchdog/provider control path; do not assume a provider-native lifetime cap exists.
-6. Maintain a conservative local cost estimate alongside provider billing, including idle/storage. At $15 warn; at $20 stop new paid work and clean up. Reserve remaining allowance for billing lag and safe termination.
-7. Refuse renewal or additional funding when the next session plus known liabilities could exceed $30. If account isolation or reliable stopping cannot be established, use the local fallback.
-8. Copy results locally and validate the manifest before terminating the specific task-owned Pod. Then confirm no task-owned persistent volumes/endpoints remain billed. Never delete unrelated account resources.
+Implement the baseline before hosted integration: reviewed region → feature detection → pyramidal Lucas–Kanade flow → forward/backward checks → robust transform fitting. Use enough well-spread inliers and explicit residual/coverage gates. Initialize thresholds on fixture data; record their versions rather than presenting arbitrary constants as universal reliability.
 
-Termination can destroy remote files; the rented worker must never hold the only copy of project data. [Pod lifecycle documentation](https://docs.runpod.io/pods/manage-pods).
+Track a reference anchor through supported transforms. For tabletop mapping, use an explicit user-selected control anchor/plane assumption. Features on elevated object surfaces create parallax: a table homography does not turn a tall object's image centroid into accurate ground contact. Limit the supported demo to modest-height props/view angles that pass the position tests and label the result as a control trajectory.
 
-These are required controls to implement and verify, not a claim that a hard dollar cap has already been configured. No resource is being rented in this planning turn.
+Where a visible approximately planar surface provides sufficient support, estimate planar rotation in rectified coordinates. Do not equate image-plane rotation with arbitrary-object 3D yaw. Symmetric objects, poor feature spread, tipping or perspective changes can make heading unavailable while translation remains useful.
 
-### Rented-worker isolation
+Heading policies are independent:
 
-Expose no unauthenticated inference server. Use an authenticated encrypted connection, bounded uploads and deadlines. The worker follows the same request/provenance contract as hosted selection. Pin model/code versions, retain license notices, and display when an image leaves the Mac. Benchmarking CoTracker does not clear its licensing for a commercial release.
+- Fixed heading.
+- Tracked planar heading when valid.
+- Explicit look-at target.
 
-## 9. Implementation checkpoints
+Velocity must not silently determine facing; backward motion must remain possible.
 
-Each task is small enough to run as a separate iteration; estimates describe implementation time, not the duration of a single assistant turn.
+SAM masks constrain feature membership and help reject drift. They do not replace correspondence tracking or robust fitting. Use initial appearance/feature consistency as additional evidence against hand transfer; if evidence is insufficient, invalidate instead of following a smooth but wrong track.
 
-| Checkpoint | Work | Gate and fallback |
-|---|---|---|
-| A — Access + one-object spike | 30-minute fal probe, then local capture, reviewed selection, features, transform and quality overlay | Mask semantics verified or explicit manual mode; position/pause/loss/re-click must work before expansion |
-| B — Two-actor stage | Calibration, stable bindings, Three.js characters, independent heading, built-in environment record | Correct shared coordinates and no silent swaps; fallback A |
-| C — Durable takes | Timestamped evidence, raw tracks, save/reload and explicit composition | Reopened take preserves timing/gaps; fallback B with session-only label |
-| D — Camera pass | Countdown, actor playback, separate camera take, replace/scrub | Camera replacement leaves actors unchanged; fallback C fixed camera |
-| E — Click-first hardening | Promote passing fal adapter, correction UI, stale-response protection, sponsored-access and outage handling; SAM2 only if needed | Correct mask-to-frame binding and measured setup delay; fallback manual selection |
-| F — Core certification | Mixed objects, failure injection, 60-second performance run, package handoff, cost/resource check | Full click-first profile or accurately labeled last passing checkpoint |
-| G — Optional generated set | World Labs job, bounded asset import, alignment/review, environment selection and offline reload | Same saved shot works in generated and built-in sets; any failure returns to F |
+Keep baseline-only and enhanced outputs as separate candidates. Refreshing features must preserve the reference frame and accumulated transform; it cannot silently reset the actor origin or recover lost identity.
 
-Suggested effort: A 1–2 hours; B 1–2; C 1–2; D 1–2; E 1–2; F 1–2. Plan roughly 6–12 focused hours for the reliable core, not a cold-start four-hour guarantee. G adds approximately 2–4 hours if its formats work as documented; cut it after a one-hour import/performance spike fails. These are implementation estimates, not measured results or promises of parallel work.
+During full occlusion, mark a gap. A display-only last-position ghost is allowed with an obvious LOST label; never export it as valid tracking. No smoothing across missing intervals. Reacquisition must be independently checked or require user re-selection and reprocessing.
 
-For a four-hour event, use the early fal probe to capture a working click path if available, target A–D, and freeze at the last passing gate. Do not sacrifice identity, loss states, timestamps, or persistence to add a generated set. All checkpoints reuse existing records; feature flags select certified adapters, never rewrite saved takes.
+## 8. Video Depth Anything and bounded fusion
 
-### G — World Labs set enhancement
+Target `fal-ai/depth-anything-video`, initially VDA-Small with a fixed processing profile. Request `include_raw_depths: true`. The documented output includes an NPZ float32 depth tensor and metadata, separately from the visualization MP4. The schema does not promise metric metres. [Official endpoint schema](https://fal.ai/models/fal-ai/depth-anything-video/api).
 
-World Labs documents asynchronous world generation and output assets including SPZ splats, a GLB collider mesh, and a panorama. Its examples recommend Spark, a Three.js-compatible splat renderer. These are useful set assets, not guaranteed rigged characters or an editable semantic scene. [World Labs API](https://docs.worldlabs.ai/api), [renderer examples](https://docs.worldlabs.ai/api/examples).
+Use one depth job per take, shared by both actors. Do not derive geometry from the colored or grayscale visualization video.
 
-Implementation design:
+Our depth contract:
 
-1. Generate one text-described environment outside recording. Avoid sending the tabletop image: the goal is a virtual set, not reconstruction. Pin the tested model/configuration and record the operation ID.
-2. Use one job at a time, bounded polling, and a ten-minute foreground wait limit. This is an application patience budget, not a generation-latency claim. The user may continue locally; timeout must not auto-submit another world.
-3. Start with the documented 100k splat asset; set a download/memory budget during the import spike. A collider GLB is not assumed to be a textured visual replacement. A panorama, if offered as fallback, is explicitly a backdrop without translational parallax.
-4. Review orientation, translation, uniform scale, floor height, and usable play area. Transform the environment around the existing stage coordinates, not stored actor/camera paths.
-5. Test characters against splat depth/occlusion and camera movement. No automatic collision, navigation, grounding, or realistic contact claim. Use the simple stage if artifacts obscure the demonstration.
-6. Commit the environment version only after asset validation and preview confirmation. Superseded jobs cannot replace the selected set. Cache permitted assets locally with hashes; save/load must work without generation access.
-7. Provide a one-click built-in-stage switch. Renderer incompatibility, missing assets, poor performance, or provider failure must leave the composition and original takes intact.
+1. Load numeric arrays safely, without pickle; check finite values, shape, frame mapping and resource bounds.
+2. Determine value direction and behavior empirically with known near/far movement and a stationary background. Do not assume whether larger means farther or whether scale stays stable.
+3. Pool robust statistics over eroded, identity-valid object masks; inspect spatial spread and valid support. Exclude boundaries and suspected hand contamination.
+4. Monitor several stationary background patches for drift. They are quality checks, not proof of absolute scale or a complete correction for monocular ambiguity.
+5. Use a fixed per-take reference and normalization only after validation. Never independently min/max-normalize each frame and interpret those values as motion.
+6. Store the raw statistic, derived relative cue, normalization parameters and quality flags separately.
+7. Invalidate depth when mask identity, alignment or temporal behavior is suspect. Do not let a depth discontinuity repair a lost object track.
 
-Free generation does not remove browser memory limits or integration work. The generated-set profile must pass the same live latency gate and its own rendering test before being demonstrated as live.
+Core fusion keeps planar solving independent of depth. Depth adds a non-metric near/far cue; it does not overwrite supported table coordinates.
 
-## 10. Acceptance tests and performance gates
+The user may enable a bounded artistic mapping of relative depth to one chosen virtual control, such as camera height offset. Show the range, sign and baseline, preview before acceptance, and label it “relative-depth control,” not physical height. Default mapping is off. A completed full profile must demonstrate at least one useful reviewed mapping on a declared fixture, not just display a heatmap.
 
-Tests are specified here but remain unexecuted. Use synthetic transforms for geometry, recorded real-object fixtures for tracking, and a small UI smoke test for the complete workflow. Exercise provider failures with mocked responses. Live sponsor smoke tests require verified access; rental-specific T14 controls apply only if rental is pursued, and W01–W04 apply only to G. The core must pass without cloud connectivity once selection is confirmed.
+Lifting or tipping may invalidate the planar assumptions. Do not simultaneously claim correct table X/Y and true lift from that interval. A projected artistic path can be shown as degraded, but reliable metric XYZ, roll/pitch and 6-DoF are out of scope.
 
-| ID | Scenario | Required result |
-|---|---|---|
-| T01 | Known translation/rotation in a rectangular stage | Correct axes, anchor and yaw; no square-aspect distortion |
-| T02 | Mirrored/resized preview selection | Prompt maps to the exact source object |
-| T03 | Partial cover removes one side's points | Anchor does not jump to the remaining-point centroid |
-| T04 | Full cover or dominant hand features | LOST/invalid rather than confidently tracking the hand |
-| T05 | Symmetric or low-texture object | Position-only or explicit unsupported selection; no invented yaw |
-| T06 | Two objects approach/cross | No silent identity swap; ambiguity becomes a gap |
-| T07 | Backward movement | Fixed/target-facing actor need not face velocity |
-| T08 | Late mask after source/cast change | Stale result rejected; no wrong-frame initialization |
-| T09 | Camera bump/calibration edit | Existing takes preserved; new run requires current calibration |
-| T10 | Stop with queued frames or uneven capture | Consistent end time; no silent tail loss or frame-count timing |
-| T11 | Save/reload and failed write | Same selected takes, timestamps and gaps; prior project intact |
-| T12 | Camera retake | Actor paths unchanged; camera replacement explicit |
-| T13 | Remote timeout/segmenter failure | Manual/local selection remains usable; no background retries |
-| T14 | Budget warning/expiry/network loss | No new paid jobs; shutdown verification or visible failure escalation |
-| T15 | Export/project package round-trip | Version, assets, coordinates and duration preserved |
-| T16 | Lift/tip | No fabricated height; detectable model failures lower validity |
-| T17 | Re-click after occlusion | New segment retains confirmed actor ID and old missing interval |
-| T18 | Take with invalid tracking ranges | Timeline/export identifies gaps; held samples never become observations |
-| T19 | SAM3/SAM2 payload fixtures | Provider-specific decoder produces correctly aligned binary mask; overlays/unknown encoding rejected |
-| T20 | Point-only and correction requests | No unintended default text; correct foreground/background prompts; confirmed actor IDs stay application-owned |
-| T21 | Sponsor expiry, billing-required response, or rate limit | No paid fallback or retry storm; manual/local operation continues |
-| T22 | Timeout, ambiguous submission, late/duplicate result | Reconcile known request ID; no blind duplicate submission or mutation of newer state |
-| T23 | Offline reopen after cloud selection | Local mask/evidence sufficient; no provider call or credentials in package |
-| T24 | Invalid remote asset URL or oversized payload | Safe rejection; no private-network fetch, unbounded download, or lost prior selection |
-| W01 | Generated set selected, scaled, then reverted | Actor/camera trajectories and timing unchanged; original stage always available |
-| W02 | Failed/superseded world generation | Previous environment retained; no accidental replacement or duplicate job |
-| W03 | Cached set reload, missing asset, renderer failure | Local asset works offline when present; explicit built-in fallback otherwise |
-| W04 | Splats plus characters during live camera pass | Measured performance acceptable and occlusion reviewed; no invented collision/contact |
+### Failure ladder
 
-Proposed performance gates on the selected Mac/setup:
+| Available evidence | Behavior |
+|---|---|
+| Masks, geometry and depth pass | Planar track plus separately enabled relative-depth control |
+| Depth fails | SAM-assisted planar track; depth unavailable |
+| Masks fail | Reviewed manual region and baseline tracker; depth not attached to an unverified identity |
+| Geometry fails | Gap and review/reprocess/re-record; no invented pose |
+| Cloud unavailable | Local fallback and previously accepted playback/export remain usable |
 
-- At least 15 valid pose updates/second on the controlled fixture while observable.
-- p95 capture-to-render delay below 200 ms over a 60-second run; report valid coverage and dropped frames alongside latency.
-- A target of at least 30 rendered frames/second for the simple stage, measured independently from tracking.
-- Stationary anchor jitter below 1% of stage width; known-motion position error below 2% of width on the near-planar fixture.
-- Click response aspiration: warm p95 below two seconds end-to-end including upload/queue/download. Measure at least 20 prompts if reporting p95, with cold and warm results separated. Slower successful setup may ship with an explicit loading state and measured delay; it is not a live-tracking failure. Requests beyond the 15-second deadline fall back without blocking capture.
-- Replay event and camera alignment within 100 ms against the source timeline.
+Do not silently switch methods midway through an accepted track. Recompute/review a candidate or label its exact method transitions and gaps.
 
-Use frame IDs and an explicit browser/backend clock-offset handshake for latency measurement; synchronize clocks rather than subtracting unrelated timestamps. Supplement with a simple filmed movement-to-display check if needed. Performance cannot be “passed” by suppressing difficult frames; invalid coverage remains part of the report.
+## 9. Camera, replay and output
 
-Run targeted tests during changes. Run the applicable full small suite once for calibration/timing/schema changes or release certification. Promote an individual checkpoint with its relevant tests and fallback checks; run the full applicable pack at F, and the environment plus shared rendering/persistence tests at G. No duplicate builds/tests, unnecessary dependency reinstallations, or repeated passing checks.
+Actor and camera passes use one named stage and scene clock. Record camera samples against the actor playback clock, with explicit lead-in/offset metadata. Processing can finish later without changing capture timing.
 
-## 11. Handoff and later phases
+The initial virtual camera has configurable fixed height, a fixed lens (default 50-degree vertical FOV, 16:9), and look-at or supported planar-heading mode. Optional depth mapping uses the same review/quality rules; no recovered roll/pitch is implied.
 
-Phase 1 handoff includes a launch command, pinned dependencies, tested object/view profile, local/manual fallback instructions, one saved demo project, fixture/test results, measured performance, known limitations, provider schema fixtures, verified sponsor limits/expiry, and a GPU cost/cleanup receipt if rental was used. Include environment assets/transforms only if G passes. Clearly distinguish provider-documented capabilities from behavior actually tested on this Mac.
+Composition rejects incompatible stage IDs/mappings, absent actor revisions and unaccounted time offsets. A different capture mapping may be accepted only through an explicit tested mapping to the same stage, not merely because both records have version numbers.
 
-Later work builds on the same tracks and composition records:
+Allow scrubbing, comparison of baseline/enhanced candidates, explicit acceptance and independent camera replacement. Playback interpolates only within valid intervals. It never calls a hosted model.
 
-- Phase 2: stronger object/occlusion handling and optional measured tracker replacement.
-- Phase 3: richer assets/animation, clean video/scene exports and shot-reference workflows; extend the same environment adapter if G was implemented.
-- Phase 4: separately validated richer physical control or generator integrations; optionally evaluate Tavus for an explicitly requested conversational directing interface.
+Required export: three user-chosen PNG frames plus JSON trajectory and shot manifest. Reproduce exact saved time, camera and aspect ratio; mark unavailable intervals and all artistic control mappings. Video animatic encoding and generator adapters are later enhancements, not disguised PNG deliverables.
 
-The earlier roadmap remains the product overview; this document controls Phase 1 scope and budget. The first coding task is checkpoint A. The first demo claim is newly recorded markerless blocking—not inferred acting, perfect arbitrary-object tracking, or generated photorealistic footage.
+## 10. Jobs, persistence, privacy and cost
+
+Job lifecycle: CREATED → PREPARING → QUEUED → RUNNING → VALIDATING → READY, or FAILED/CANCELED. READY means reviewable, not accepted.
+
+Persist external request IDs immediately. On restart, reconcile an existing job before resubmitting. Retry bounded transient failures only; do not automatically repeat invalid payloads or unauthorized requests. Cancellation stops local consumption and requests provider cancellation where available, but cannot promise an already-running remote job will not be billed.
+
+Cache by proxy hash, selection/configuration hash and adapter/model identity. A two-actor take ordinarily needs two segmentation jobs and one depth job, not per-frame calls. Queue concurrency starts conservatively and increases only after account limits are verified. Download successful artifacts into the project; expiring URLs must not be authoritative storage.
+
+Use atomic manifest writes. Save outputs under new IDs; never replace original capture, baseline results or accepted takes in place. Failed/canceled processing leaves the project usable.
+
+Keep API keys in the local backend, out of frontend bundles, manifests and logs. Obtain explicit upload consent in the app, describe the footage being sent, avoid bystanders and record provider retention/deletion limitations. Validate external downloads, MIME/content, archive paths, sizes and NPZ allocation limits.
+
+The user reports unlimited hackathon fal.ai, World Labs and Tavus access. Exact endpoint eligibility, expiry, rate limits, credits and billing remain unverified. A must confirm the two required endpoints before paid inference. World Labs and Tavus are not dependencies.
+
+Default additional GPU rental: **$0**. Preserve the user's **under-$40** limit with a $30 operational ceiling and $10 reserve. Count paid API requests, compute, storage, taxes and egress together. Do not launch a paid job without known applicable coverage or a bounded cost estimate that fits the remaining allowance.
+
+Optional GPU experiments require a current price check, explicit session cap and automatic shutdown. No assumption that sponsor access includes custom deployment. Budget policy is a planned guardrail, not a claim that resources have already been provisioned or capped.
+
+## 11. Acceptance tests and realistic latency
+
+These are proposed release gates, not measured results.
+
+| Area | Required check |
+|---|---|
+| Endpoint contract | Actual selected-object masks and raw depth parse correctly; documented coverage and billing status recorded |
+| Alignment | Timed-event fixture detects frame offsets, truncation, resize/crop and orientation mismatches; invalid artifacts rejected |
+| Manipulation | Three distinct everyday props, five 10-second trials each; at least four successful trials per prop |
+| Useful coverage | Successful trials have at least 95% valid position coverage during annotated observable movement, without re-selection |
+| Identity | Two actors, crossings, partial hand occlusion and similar colors; no undetected actor/hand transfer on the test set |
+| Loss | Full occlusion/off-screen exit invalidated within two proxy frames; no fabricated continuity |
+| Position | On declared tabletop fixture, static jitter ≤1% stage width and median marked-path error ≤2% width |
+| Heading | Directional prop turns, symmetry and backward movement tested; heading may be unavailable without invalidating position |
+| Depth usefulness | Five controlled near/far trials: at least four show the correct signed trend; no metric-distance claim |
+| Depth negative controls | Stationary object with moving hand/background does not create accepted false movement; inspect scale drift and mask contamination |
+| Depth stability | On static fixture, false control excursion ≤5% of the locked test mapping range; never tune the range separately to hide each failure |
+| Fusion failures | SAM-only, depth-only, no-cloud, corrupt artifact and unsupported lift paths produce the documented fallback/invalid states |
+| Durability | Crash/cancel/restart and expired URL preserve original/accepted data; no duplicate blind submissions |
+| Composition | Camera replacement preserves actor hash; shifted stage/clock rejected; save/reopen restores exact composition |
+| Export | Three PNGs match saved time/FOV/aspect; manifest records source revisions, gaps and artistic controls |
+
+Report deliberate unobservable intervals separately; do not inflate coverage by excluding ordinary difficult hand manipulation. Annotate selected source frames manually for initial ground truth. Report results per prop/view, not as universal accuracy.
+
+Post-record processing target: roughly 30–90 seconds for a 5–10-second take, **unbenchmarked**. Measure preparation/upload, queue, inference, download, validation and solving separately. At 120 seconds show a slow-processing state with local fallback available; use a configurable five-minute local wait limit and retain remote request IDs for later reconciliation.
+
+Benchmark at least five representative complete takes, distinguishing cold/warm conditions. Report all timings, median and worst observed; do not label five samples as a reliable p95. If hosted performance is slower, present the measured delay and keep asynchronous review rather than claiming real-time operation.
+
+During development, run only directly relevant tests after narrow changes. Shared schemas, replay or build changes warrant broader checks. No model installation, GPU rental, implementation test or deployment is authorized merely by this planning document.
+
+## 12. Deferred experiments and handoff
+
+**CoTracker:** benchmark locally, separately, on the same saved fixtures after the core pipeline works. Compare usable coverage, identity failures, memory and total processing time against mask-assisted OpenCV. Promotion is earned; it is not a required replacement or blocker.
+
+**SpatialTrackerV2 / OnePose++:** optional later GPU experiments. No install, custom deployment or 6-DoF milestone is required in Phase 1. Revisit only after sponsor deployment coverage and event time are known.
+
+**World Labs / Tavus:** later optional environment/presentation layers. They never own capture, tracks or playback. Neutral stage and local playback remain available.
+
+Handoff must include runnable setup instructions, environment-variable names without secrets, endpoint contract fixtures, test results, saved demo takes, schema/adapter versions, known unsupported interactions and the exact completion profile achieved.
+
+The first coding task is checkpoint A: one real saved manipulation clip, baseline tracking and the two sponsored payload probes. Build around actual artifacts before expanding the UI.
+
+Related documents: [overarching roadmap](PocketStage_Everyday_Object_Implementation_Plan.md), [historical adversarial review](PocketStage_Phase_1_Adversarial_Review.md), [broader RGB/3D research](PocketStage_RGB_3D_Tracking_Feasibility.md).

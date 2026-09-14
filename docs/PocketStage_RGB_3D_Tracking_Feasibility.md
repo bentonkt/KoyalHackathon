@@ -1,5 +1,7 @@
 # PocketStage: RGB Tracking and 6-DoF Feasibility
 
+Scope update — September 14, 2026: this document preserves broader research, not the current build order. The [active Phase 1 plan](PocketStage_Phase_1_Implementation_Plan.md) now specifies SAM 2 Video masks + Video Depth Anything + local geometric solving, with lightweight OpenCV fallback. Phase 1 excludes 6-DoF, PnP and object enrollment. CoTracker is a separate local benchmark; SpatialTrackerV2 and OnePose++ remain optional later experiments. Earlier recommendations below do not override this decision.
+
 ## Recommendation
 
 Build around a recorded 5–10-second RGB take, then produce a reviewed trajectory. Do not require LiDAR, live neural inference, or a full object scan for the basic experience. Preserve the existing local tabletop preview and recording format as the fallback.

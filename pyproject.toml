@@ -9,6 +9,9 @@ description = "PocketStage recorded RGB tracking feasibility spike"
 requires-python = ">=3.11"
 dependencies = ["numpy>=2.0,<3", "opencv-python-headless>=4.10,<5"]
 
+[project.optional-dependencies]
+cloud = ["fal-client>=0.7,<1"]
+
 [project.scripts]
 pocketstage = "pocketstage.cli:main"
 
