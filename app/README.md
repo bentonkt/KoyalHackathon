@@ -1,12 +1,12 @@
-# PocketStage Director's Desk
+# PocketStage Capture Studio and Director's Desk
 
-The downstream half of the Phase 1 PocketStage demo: reviewed tabletop trajectories become a virtual actor performance, then a separately performed virtual camera pass.
+The browser now covers video import, first-frame object selection, real SAM 2 + Depth Anything processing, generated-video review, and the downstream Director's Desk.
 
-This app deliberately contains no webcam access, object selection, segmentation, tracking, optical flow, or tabletop calibration. Those stay in Benton's Python pipeline. The built-in mock source makes the directing workflow testable before CV is ready and is always visibly labeled `MOCK`.
+Model credentials and hosted calls stay in the loopback-only Python service. The browser sends the selected clip to that local service only after per-run consent; the service creates the canonical proxy, uploads it once to fal.ai, runs one SAM 2 pass per object plus one shared Depth Anything pass, validates the artifacts, and returns the rendered motion preview and tracks.
 
 ## Run locally
 
-Requires Node.js 20 or newer.
+Requires Node.js 20 or newer, the repository `.venv`, FFmpeg, and `FAL_KEY` in the ignored root `.env`.
 
 ```bash
 cd app
@@ -14,7 +14,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. The complete production and test checks are:
+`npm run dev` starts both the loopback processing API on port 8765 and Vite on port 5173. Open the local URL printed by Vite. The complete production and test checks are:
 
 ```bash
 npm test
@@ -91,7 +91,7 @@ The sender must provide stage-space positions and one authoritative monotonic so
 
 ## What is intentionally not built
 
-- CV, webcam capture, calibration, segmentation, provider calls, or fal credentials in the browser
+- webcam capture, metric calibration, or fal credentials in the browser
 - automatic identity reassignment, yaw-from-velocity, elevation-from-scale, or silent gap filling
 - generated environments, skeletal animation, physics, collision, or generic plugin infrastructure
 - server/database/auth/deployment machinery

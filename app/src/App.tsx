@@ -6,6 +6,7 @@ import { importCandidate, importRelativeMotion, relativeObjectIds } from './trac
 import { Stage } from './stage/Stage';
 import { MotionRecorder, type MotionFrame } from './recording/recorder';
 import { SourcePreview } from './tracking/SourcePreview';
+import { PipelineWorkspace } from './PipelineWorkspace';
 
 const LABEL: Record<Role, string> = { 'actor-a': 'Actor A', 'actor-b': 'Actor B', camera: 'Camera' };
 const CACHE = 'pocketstage-director-v1';
@@ -19,6 +20,7 @@ function initialProject() {
 const seconds = (t: number) => `${Math.floor(t).toString().padStart(2, '0')}:${Math.floor((t % 1) * 30).toString().padStart(2, '0')}`;
 
 export default function App() {
+  const [workspace, setWorkspace] = useState<'pipeline' | 'director'>('pipeline');
   const [boot] = useState(initialProject);
   const [project, setProject] = useState<Project>(boot.project);
   const [mode, setMode] = useState<Mode>('idle'), [time, setTime] = useState(0), [overview, setOverview] = useState(false);
@@ -119,6 +121,8 @@ export default function App() {
     catch (e) { setNotice(`Could not open: ${(e as Error).message} Current project preserved.`); }
   }
 
+  if (workspace === 'pipeline') return <PipelineWorkspace onOpenDirector={() => setWorkspace('director')}/>;
+
   return <div className="app-shell">
     <header className="topbar"><a className="brand" href="#"><span className="brand-mark"><Aperture size={23}/></span>PocketStage<span className="beta">DIRECTOR'S DESK</span></a><div className="project-title"><span className="small-dot"/> The encounter <span className="slash">/</span> Scene 01</div><div className="header-actions"><span className={`save-status ${!saved ? 'warning' : ''}`}>{saved ? 'Saved in this browser' : 'Local storage full · export JSON'}</span><button disabled={busy} onClick={() => openFile.current?.click()}><ArrowUpFromLine size={15}/> Open</button><button onClick={save}><Save size={15}/> Save project</button></div></header>
     <input ref={openFile} hidden type="file" accept=".json,application/json" onChange={e => { void load(e.target.files?.[0]); e.target.value = ''; }}/>
@@ -166,7 +170,7 @@ export default function App() {
           {cameraTake && <label className="field-label">Camera start offset (seconds)<input key={cameraTake.id} disabled={busy} type="number" min="-10" max="10" step="0.1" defaultValue={cameraTake.offset} onBlur={e => { const value = +e.target.value; if (Number.isFinite(value) && Math.abs(value) <= 10 && value !== cameraTake.offset) setProject(p => commitTake(p, { ...cameraTake, id: uid(), name: `${cameraTake.name} · aligned`, offset: value })); else e.target.value = String(cameraTake.offset); }}/></label>}
           <p className="microcopy">Gaps and short camera coverage stay visible. No time stretching or inferred depth.</p>
         </div></aside>
-    </main><footer><span><Aperture size={13}/> POCKETSTAGE <span className="slash">/</span> TANGIBLE CINEMATOGRAPHY</span><span>Built-in set · Local playback · No cloud required</span><span>HACKATHON BUILD <span className="status-dot"/></span></footer>
+    </main><footer><span><Aperture size={13}/> POCKETSTAGE <span className="slash">/</span> TANGIBLE CINEMATOGRAPHY</span><button className="text-button" onClick={() => setWorkspace('pipeline')}>← Back to Capture Studio</button><span>Built-in set · Local playback · No cloud required</span><span>HACKATHON BUILD <span className="status-dot"/></span></footer>
     {importOpen && <ImportDialog project={project} onClose={() => setImportOpen(false)} onAccept={p => { setProject(p); setTime(0); setImportOpen(false); setNotice('Reviewed CV candidate accepted as a new take version. Original candidate remains unchanged; no gap was filled.'); }}/>}
   </div>;
 }
