@@ -1,6 +1,39 @@
 import { type Role, type Track, type Status, uid, validateTrack } from '../model';
 
 export interface CandidateReview { role: Role; stageId: string; sourceWidth: number; sourceDepth: number; stageWidth: number; stageDepth: number }
+export interface RelativeReview { role: Role; objectId: string; stageId: string; scale: number; origin: [number, number] }
+
+export function relativeObjectIds(value: unknown): string[] {
+  const r = value as Record<string, unknown>;
+  if (!r || r.schema_version !== 1 || r.capability !== 'approximate_mask_centroid_demo' || !Array.isArray(r.object_ids) || !Array.isArray(r.samples) || r.samples.length < 1 || r.samples.length > 10000) return [];
+  const ids = r.object_ids;
+  if (!ids.every((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 24) || new Set(ids).size !== ids.length) return [];
+  return ids;
+}
+
+/** Adapt Benton's multi-object motion demo through a reviewed artistic mapping.
+ * These normalized image offsets are DEGRADED controls, never stage measurements.
+ */
+export function importRelativeMotion(value: unknown, review: RelativeReview): Track {
+  const r = value as Record<string, unknown>, ids = relativeObjectIds(value);
+  if (!ids.includes(review.objectId) || typeof r.proxy_sha256 !== 'string' || !r.proxy_sha256 || typeof r.reference_id !== 'string' || !ids.includes(r.reference_id) || r.semantics !== 'normalized_screen_plane_relative_to_measured_reference_not_3d_or_metres' || r.identity_certified !== false) throw new Error('Expected a PocketStage approximate multi-object motion export.');
+  if (!review.stageId.trim() || !Number.isFinite(review.scale) || review.scale <= 0 || review.scale > 100 || review.origin.length !== 2 || !review.origin.every(Number.isFinite)) throw new Error('Review a finite artistic motion scale, origin, and stage ID.');
+  const samples = r.samples as Array<Record<string, unknown>>;
+  const track: Track = {
+    id: uid(), role: review.role, stageId: review.stageId.trim(), clockId: `relative:${r.proxy_sha256}`, source: 'cv',
+    provenance: { candidateId: `relative:${review.objectId}`, takeId: `relative:${r.proxy_sha256}`, proxySha256: r.proxy_sha256, original: structuredClone(value), mapping: { ...review, semantics: 'artistic_relative_screen_plane_to_stage' } },
+    samples: samples.map(frame => {
+      const objects = frame.objects as Record<string, Record<string, unknown>> | undefined;
+      const object = objects?.[review.objectId];
+      const xy = object?.position_relative;
+      const present = Array.isArray(xy) && xy.length === 2 && xy.every(Number.isFinite);
+      if ((present && object?.status !== 'RELATIVE_UNVALIDATED_IDENTITY') || (!present && object?.status !== 'REFERENCE_OR_OBJECT_GAP')) throw new Error('Relative motion status and position disagree.');
+      return { t: frame.time_s as number, position: present ? [review.origin[0] + (xy[0] as number) * review.scale, review.origin[1] + (xy[1] as number) * review.scale] as [number, number] : null, status: present ? 'DEGRADED' : 'LOST', yaw: null };
+    }),
+  };
+  validateTrack(track);
+  return track;
+}
 
 /** Adapt Benton's schema v1 candidates, preserving original evidence and gaps.
  * The user explicitly reviews stage identity and source rectangle extents:

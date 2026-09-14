@@ -53,9 +53,9 @@ For genuine metric 6-DoF, the most credible hackathon experiment uses an enrolle
 
 The Python pipeline includes immutable import, canonical proxies, independent OpenCV tracking, explicit tabletop mapping, hosted SAM/depth jobs, shared-depth multi-object runs, approximate centroid motion, relative moving/static object positions, and JSON/CSV/video exports. SAM and depth have completed on supplied real clips. Raw footage, private cloud state, and credentials are deliberately not committed.
 
-The [Director's Desk web app](app/README.md) provides mock-backed actor/camera recording, virtual playback, review, and import of reviewed stage-space Python candidates. The new relative-image motion JSON is a separate format: it is **not yet connected to that importer**. Do not rename image offsets to stage coordinates or inferred depth to height. The full integrated Phase 1 application and 6-DoF are not complete.
+The [Director's Desk web app](app/README.md) provides mock-backed actor/camera recording, virtual playback, review, and import of reviewed stage-space candidates. It also accepts the approximate multi-object `motion-tracks.json` through an explicit artistic scale/origin review: image offsets remain labeled degraded controls, and raw depth is preserved as evidence rather than renamed height. The full integrated Phase 1 application and 6-DoF are not complete.
 
-See [implementation setup and CLI usage](IMPLEMENTATION.md). The next integration is an explicit reviewed mapping from the multi-object motion export to the app's stage-space contract, preserving timing and tracking gaps.
+See [implementation setup and CLI usage](IMPLEMENTATION.md). The next integration is replacing file handoff with a local transport after Benton's capture protocol stabilizes; the renderer-facing trajectory contract already preserves source timing and tracking gaps.
 
 ## Documentation
 

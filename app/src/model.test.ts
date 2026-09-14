@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { blankProject, commitTake, parseProject, sampleAt, selectedTake, validateTrack, type Sample, type Track } from './model';
 import { demoProject, mockTrack } from './tracking/mock';
-import { importCandidate } from './tracking/adapter';
+import { importCandidate, importRelativeMotion, relativeObjectIds } from './tracking/adapter';
 
 const track = (samples: Sample[]): Track => ({ id: 'track', role: 'actor-a', stageId: 'stage', clockId: 'clock', source: 'cv', samples });
 const sample = (t: number, x = 0): Sample => ({ t, position: [x, 0], status: 'VALID', yaw: null });
@@ -41,4 +41,19 @@ describe('Benton candidate adapter', () => {
   it('rejects missing stage position marked valid', () => { const c = candidate(); c.samples[0].position_stage = null; expect(() => importCandidate(c, review)).toThrow('missing finite'); });
   it('rejects invalid times, unknown schemas, and zero extents', () => { const c = candidate(); c.samples[2].time_s = .1; expect(() => importCandidate(c, review)).toThrow('increasing'); expect(() => importCandidate({ ...candidate(), schema_version: 2 }, review)).toThrow(); expect(() => importCandidate(candidate(), { ...review, sourceWidth: 0 })).toThrow(); });
   it('rejects non-finite, nonmonotonic and fabricated lost measurements', () => { expect(() => validateTrack(track([sample(0), sample(0)]))).toThrow(); expect(() => validateTrack(track([sample(NaN)]))).toThrow(); expect(() => validateTrack(track([{ ...sample(0), status: 'LOST' }]))).toThrow('Lost positions'); });
+});
+
+const relative = () => ({ schema_version: 1, capability: 'approximate_mask_centroid_demo', accepted: false, proxy_sha256: 'shared-proxy', reference_id: 'bottle', object_ids: ['phone', 'bottle'], semantics: 'normalized_screen_plane_relative_to_measured_reference_not_3d_or_metres', identity_certified: false, samples: [
+  { time_s: 0, objects: { phone: { position_relative: [-.25, .5], depth_difference_raw: 3, status: 'RELATIVE_UNVALIDATED_IDENTITY', role: 'moving_measured' }, bottle: { position_relative: [0, 0], depth_difference_raw: 0, status: 'RELATIVE_UNVALIDATED_IDENTITY', role: 'static_measured' } } },
+  { time_s: .1, objects: { phone: { position_relative: null, depth_difference_raw: null, status: 'REFERENCE_OR_OBJECT_GAP', role: 'moving_measured' }, bottle: { position_relative: null, depth_difference_raw: null, status: 'REFERENCE_OR_OBJECT_GAP', role: 'static_measured' } } },
+  { time_s: .2, objects: { phone: { position_relative: [.25, -.5], depth_difference_raw: 5, status: 'RELATIVE_UNVALIDATED_IDENTITY', role: 'moving_measured' }, bottle: { position_relative: [0, 0], depth_difference_raw: 0, status: 'RELATIVE_UNVALIDATED_IDENTITY', role: 'static_measured' } } }
+] });
+describe('Benton multi-object motion adapter', () => {
+  const mapping = { role: 'actor-a' as const, objectId: 'phone', stageId: 'stage', scale: 8, origin: [1, -1] as [number, number] };
+  it('detects named objects and maps reviewed relative offsets to X/Z', () => { const t = importRelativeMotion(relative(), mapping); expect(relativeObjectIds(relative())).toEqual(['phone', 'bottle']); expect(t.samples[0]).toMatchObject({ position: [-1, 3], status: 'DEGRADED', yaw: null }); expect(t.samples[2].position).toEqual([3, -5]); });
+  it('keeps gaps and source time exactly', () => { const t = importRelativeMotion(relative(), mapping); expect(t.samples[1]).toEqual({ t: .1, position: null, status: 'LOST', yaw: null }); });
+  it('preserves raw depth as evidence without using it as height', () => { const source = relative(), t = importRelativeMotion(source, mapping); expect(t.provenance?.original).toEqual(source); expect(t.samples).not.toHaveProperty('depth'); expect(t.provenance?.mapping).toMatchObject({ semantics: 'artistic_relative_screen_plane_to_stage' }); });
+  it('gives every object in one export a shared clock and proxy', () => { const p = importRelativeMotion(relative(), mapping), b = importRelativeMotion(relative(), { ...mapping, role: 'actor-b', objectId: 'bottle' }); expect(p.clockId).toBe(b.clockId); expect(p.provenance?.proxySha256).toBe(b.provenance?.proxySha256); });
+  it('rejects unreviewed schema claims, unknown objects and invalid mapping', () => { expect(() => importRelativeMotion({ ...relative(), identity_certified: true }, mapping)).toThrow(); expect(() => importRelativeMotion(relative(), { ...mapping, objectId: 'hand' })).toThrow(); expect(() => importRelativeMotion(relative(), { ...mapping, scale: 0 })).toThrow(); expect(relativeObjectIds({ ...relative(), object_ids: ['phone', 'phone'] })).toEqual([]); });
+  it('rejects disagreement between position and status', () => { const r = relative(); r.samples[0].objects.phone.status = 'REFERENCE_OR_OBJECT_GAP'; expect(() => importRelativeMotion(r, mapping)).toThrow('disagree'); });
 });

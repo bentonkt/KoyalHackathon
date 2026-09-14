@@ -56,6 +56,8 @@ Required candidate fields:
 
 The adapter treats Python's `position_stage` as a reviewed top-left-origin `(u, v)` ground plane and maps it to centered Three.js `(X, Z)` on a right-handed, Y-up stage. The current Python geometry defaults to a 1 × 1 virtual plane. The review dialog asks for these source extents because schema v1 does not record them. This review is mandatory; matching corner numbers do not prove that two recordings used an unchanged physical setup.
 
+The same dialog also accepts the current `motion-demo` output, `motion-tracks.json`. Choose one named source object, assign its virtual role, and review an artistic scale and origin. The adapter maps `position_relative` image offsets to X/Z while labeling every present sample `DEGRADED`; gaps remain lost. It preserves the complete export, including raw depth differences, as provenance but does not apply depth to height. Import multiple objects from the same export to give them a shared performance clock.
+
 Import Actor A and Actor B candidates with the same `take_id` to compose one simultaneous performance. Import Camera from its separate take after selecting that actor performance. Camera offset is saved explicitly. Retakes create new versions; they never overwrite earlier accepted data.
 
 Rules enforced at the boundary:
