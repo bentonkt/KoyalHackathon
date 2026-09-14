@@ -51,12 +51,15 @@ For genuine metric 6-DoF, the most credible hackathon experiment uses an enrolle
 
 ## Current status
 
-This repository currently contains research and implementation plans. No application, model benchmark, inference job, GPU rental, or provider resource has been created yet.
+This repository now includes the first offline implementation slice: immutable video import, a canonical 15-fps proxy, reviewed rectangular selection, local OpenCV feature tracking, fail-closed tracking loss, tabletop coordinate mapping, versioned trajectory candidates, provider request/response validation, a CLI, and deterministic tests.
 
-The first proof is one ordinary object surviving natural hand manipulation in a recorded 5–10-second take. Expansion to two actors or optional environments happens only after that gate passes.
+It is checkpoint A, not the completed Phase 1 app. Hosted inference, webcam capture, the review UI, two-actor composition, the camera pass, 6-DoF, and optional environments are not implemented yet. No inference job, GPU rental, or provider resource has been created.
+
+See [implementation setup and CLI usage](IMPLEMENTATION.md) to run the current slice. The next proof is one ordinary object surviving natural hand manipulation in a recorded 5–10-second take.
 
 ## Documentation
 
+- [Implementation setup and current capabilities](IMPLEMENTATION.md)
 - [Everyday-object product and implementation roadmap](docs/PocketStage_Everyday_Object_Implementation_Plan.md)
 - [Phase 1 implementation specification](docs/PocketStage_Phase_1_Implementation_Plan.md)
 - [Phase 1 adversarial review](docs/PocketStage_Phase_1_Adversarial_Review.md)

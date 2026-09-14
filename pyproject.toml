@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pocketstage"
+version = "0.1.0"
+description = "PocketStage recorded RGB tracking feasibility spike"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2.0,<3", "opencv-python-headless>=4.10,<5"]
+
+[project.scripts]
+pocketstage = "pocketstage.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pocketstage*"]
