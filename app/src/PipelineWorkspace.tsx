@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Aperture, ArrowRight, Check, ChevronRight, Clapperboard, Download, Film, LoaderCircle, MousePointer2, Plus, ScanLine, Trash2, Upload, Video } from 'lucide-react';
 import './pipeline.css';
+import { KlingGenerationPanel } from './KlingGenerationPanel';
 
 type Phase = 'import' | 'select' | 'analyze' | 'result';
 type ObjectRole = 'actor-a' | 'actor-b' | 'camera' | 'reference';
@@ -240,6 +241,7 @@ export function PipelineWorkspace({ onOpenDirector }: { onOpenDirector: () => vo
     </main>}
 
     {phase === 'result' && video && result && <main className="pipeline-page result-page"><section className="result-main"><div className="workspace-heading"><div><span className="card-kicker">GENERATE & REVIEW</span><h1>Your tracked take is ready.</h1><p>Review the SAM 2 motion and shared Depth Anything output before directing the scene.</p></div><span className="result-status ready"><i/>PIPELINE COMPLETE</span></div><div ref={resultCanvas} className="result-player"><div className="result-video-frame" style={{ width: resultFrame.width || undefined, height: resultFrame.height || undefined }}><video src={result.url} controls autoPlay muted playsInline onLoadedMetadata={event => setResultVideoSize({ width: event.currentTarget.videoWidth, height: event.currentTarget.videoHeight })}/></div></div><div className="result-actions"><button className="quiet-button" onClick={() => { analysisRequestId.current = null; setSelectionConfirmed(false); setUploadConsent(false); setMessage('Selection reopened at the first frame.'); setPhase('select'); }}><MousePointer2 size={15}/> Edit selections</button><button className="quiet-button" onClick={downloadManifest}><Download size={15}/> Export selection</button><button className="pipeline-primary" disabled={!tracksUrl} onClick={downloadTracks}><Download size={15}/> Download motion tracks</button></div></section><aside className="result-summary"><span className="card-kicker">TRACK SUMMARY</span><h2>{objects.length} labeled objects</h2><div className="summary-list">{objects.map((object, index) => <div key={object.id}><i style={{ background: object.color }}>{index + 1}</i><span><strong>{object.label}</strong><small>{ROLE_LABELS[object.role]}</small></span><Check size={15}/></div>)}</div><div className="pipeline-stack"><span>ANALYSIS STACK</span><strong>SAM 2 Video</strong><small>Independent object masks</small><strong>Video Depth Anything</strong><small>One shared relative-depth pass</small></div><button className="pipeline-primary" onClick={onOpenDirector}><Clapperboard size={16}/> Continue to Director's Desk <ArrowRight size={15}/></button><p className="result-note">The Director’s Desk stays downstream: it turns reviewed trajectories into actors, cameras, and a virtual shot.</p></aside></main>}
+    {phase === 'result' && analysisStatus?.job_id && <KlingGenerationPanel key={analysisStatus.job_id} jobId={analysisStatus.job_id}/>}
   </div>;
 }
 

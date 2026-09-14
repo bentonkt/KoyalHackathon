@@ -21,6 +21,7 @@ from .demo import build_motion_demo
 from .fal_transport import FalTransport
 from .media import import_take
 from .objects import add_object_run
+from .generation import GenerationService, MAX_REQUEST_BYTES
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,6 +91,7 @@ class JobService:
         self.jobs_root = Path(jobs_root)
         self.jobs_root.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
+        self.generations = GenerationService(self.jobs_root, ROOT / '.env')
 
     def _state_path(self, job_id: str) -> Path:
         return self.jobs_root / job_id / "api-state.json"
@@ -259,6 +261,20 @@ class CaptureStudioHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self) -> None:
+        generation = re.fullmatch(r'/api/jobs/([0-9a-f]{32})/generations', urlparse(self.path).path)
+        if generation:
+            if self.headers.get('Origin') and not self._origin():
+                self.send_error(403)
+                return
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 1 <= length <= MAX_REQUEST_BYTES or self.headers.get('Content-Type') != 'application/json':
+                    raise ValueError('Expected a bounded JSON generation request')
+                data = json.loads(self.rfile.read(length))
+                self._json(202, self.service.generations.create(generation[1], data))
+            except (ValueError, OSError, KeyError):
+                self._json(400, {'error': 'Generation inputs are invalid. Check image, regions, five-second track coverage, and backend FAL_KEY.'})
+            return
         if urlparse(self.path).path != "/api/jobs":
             self.send_error(404)
             return
@@ -303,6 +319,17 @@ class CaptureStudioHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        generation = re.fullmatch(r'/api/jobs/([0-9a-f]{32})/generations/([0-9a-f]{32})(/video)?', path)
+        if generation:
+            try:
+                job_id, generation_id, video = generation.groups()
+                if video:
+                    self._file(self.service.generations.artifact(job_id, generation_id), download=False)
+                else:
+                    self._json(200, self.service.generations.read(job_id, generation_id))
+            except (ValueError, OSError, KeyError):
+                self._json(404, {'error': 'Generation is unavailable; no replacement was submitted.'})
+            return
         if path == "/api/health":
             self._json(200, {"status": "ok", "fal_key_configured": bool(load_key(ROOT / ".env"))})
             return
