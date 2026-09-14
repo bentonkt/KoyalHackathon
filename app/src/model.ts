@@ -37,6 +37,7 @@ export function sampleAt(track: Track | undefined, t: number): Sample {
 export function commitTake(p: Project, take: Take): Project {
   if (!take.tracks.length || take.tracks.some(t => t.stageId !== p.stage.id)) throw new Error('Stage mismatch. Review the physical stage before combining takes.');
   if (take.kind === 'actors' && new Set(take.tracks.map(t => t.clockId)).size !== 1) throw new Error('Actor candidates must come from the same source take / clock.');
+  if (take.kind === 'actors' && take.tracks.every(t => t.source === 'cv') && new Set(take.tracks.map(t => t.provenance?.proxySha256)).size !== 1) throw new Error('Actor candidates must reference the same canonical proxy.');
   if (take.kind === 'camera') {
     if (!p.selectedActors) throw new Error('A camera pass requires an actor performance.');
     take = { ...take, actorTakeId: p.selectedActors };
@@ -72,7 +73,7 @@ export function parseProject(value: unknown): Project {
     if (!take.id || ids.has(take.id) || typeof take.name !== 'string' || !['actors', 'camera'].includes(take.kind) || !Number.isFinite(take.duration) || take.duration <= 0 || take.duration > 600 || !Number.isFinite(take.offset) || Math.abs(take.offset) > 600 || !Array.isArray(take.tracks) || take.tracks.length < 1 || take.tracks.length > 2) throw new Error('Invalid take.');
     ids.add(take.id);
     take.tracks.forEach(validateTrack);
-    if (take.tracks.some(t => t.stageId !== p.stage.id || (take.kind === 'camera' ? t.role !== 'camera' : t.role === 'camera')) || new Set(take.tracks.map(t => t.role)).size !== take.tracks.length || (take.kind === 'actors' && new Set(take.tracks.map(t => t.clockId)).size !== 1)) throw new Error('Incompatible take tracks.');
+    if (take.tracks.some(t => t.stageId !== p.stage.id || (take.kind === 'camera' ? t.role !== 'camera' : t.role === 'camera')) || new Set(take.tracks.map(t => t.role)).size !== take.tracks.length || (take.kind === 'actors' && new Set(take.tracks.map(t => t.clockId)).size !== 1) || (take.kind === 'actors' && take.tracks.every(t => t.source === 'cv') && new Set(take.tracks.map(t => t.provenance?.proxySha256)).size !== 1)) throw new Error('Incompatible take tracks.');
     if (Math.abs(take.duration - durationOf(take.tracks)) > 1e-5) throw new Error('Take duration must match source coverage.');
   }
   for (const kind of ['actors', 'camera'] as const) {

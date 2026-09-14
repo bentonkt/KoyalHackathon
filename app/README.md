@@ -63,7 +63,7 @@ Rules enforced at the boundary:
 - Source timestamps must be finite and strictly increasing. Renderer FPS is never used as the recording clock.
 - `VALID` and `DEGRADED` require finite stage positions.
 - `LOST` and `UNAVAILABLE` require null positions. The renderer does not interpolate over them or over gaps longer than 250 ms.
-- Actor tracks in one performance must share a clock/take ID and stage identity.
+- Actor tracks in one performance must share a clock/take ID, canonical proxy hash, and stage identity.
 - A camera pass stores the exact actor-take ID it was performed against.
 - Heading stays null unless measured. Actor facing is an independent fixed/look-at policy; retreating does not turn an actor around.
 - Pixel-only candidates are rejected. Apparent scale is never promoted to height or depth.
